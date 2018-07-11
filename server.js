@@ -2,8 +2,6 @@
 
 const Hapi = require('hapi')
 const fs = require('fs')
-const mongoose = require('mongoose')
-const config = require('./config/config')
 const logStream = fs.createWriteStream('logs/app.log', { flags: 'a' })
 
 const start = async () => {
@@ -21,13 +19,9 @@ const start = async () => {
 		}
 	})
 
-	await server.register({
-		plugin: require('rest-hapi'),
-		options: {
-			mongoose,
-			config
-		}
-	})
+	require('./src/data/database').init(server)
+
+	server.route(require('./src/routes/recipe.routes'))
 
 	await server.start()
 
