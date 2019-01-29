@@ -1,12 +1,18 @@
 const Recipe = require('../models/recipe.model')
 const Boom = require('boom')
 const validate = require('../util/validator')
+const convert = require('../util/converter')
 
 const Handler = {
 
 	getAllRecipes: async function(request, h) {
 		try {
-			return await Recipe.find()
+			let recipes = await Recipe.find()
+			const response = []
+			recipes.forEach(function(recipe) {
+				response.push(convert(recipe))
+			})
+			return response
 		} catch(e) {
 			request.logger.error(e)
 			return new Boom(e)
@@ -15,11 +21,20 @@ const Handler = {
 
 	getRecipe: async function(request, h) {
 		try {
-			const recipe = await Recipe.findById(request.params.id)
+			let recipe
+			if (request.params.id) {
+				recipe = await Recipe.findById(request.params.id)
+			} else if (request.query.name) {
+				console.log(request.query.name)
+				recipe = await Recipe.findOne({'name_lower': request.query.name})
+			} else {
+				return Boom.badRequest("Insufficent data to complete request")
+			}
 			if (!recipe) {
 				return Boom.notFound()
 			}
-			return recipe
+			console.log(recipe.name_lower)
+			return convert(recipe)
 		} catch(e) {
 			request.logger.error(e)
 			return new Boom(e)
@@ -32,14 +47,17 @@ const Handler = {
 		}
 		const recipe = new Recipe({
 			name: request.payload.name,
-			submitted_date: Date.now(),
+			name_lower: request.payload.name.toLowerCase(),
+			creation_date: Date.now(),
+			last_modified: Date.now(),
 			ingredients: request.payload.ingredients,
 			steps: request.payload.steps,
-			tags: request.payload.tags
+			tags: request.payload.tags,
+			notes: request.payload.notes
 		})
 		try {
 			const savedRecipe = await recipe.save()
-			return { id: savedRecipe.id }
+			return convert(savedRecipe)
 		} catch (e) {
 			request.logger.error(e)
 			if (e.code === 11000) {
@@ -56,9 +74,12 @@ const Handler = {
 		}
 		const updates = {
 			name: request.payload.name,
+			name_lower: request.payload.name.toLowerCase(),
+			last_modified: Date.now(),
 			ingredients: request.payload.ingredients,
 			steps: request.payload.steps,
-			tags: request.payload.tags || []
+			tags: request.payload.tags,
+			notes: request.payload.notes
 		}
 		try {
 			const updated = await Recipe.findByIdAndUpdate(request.params.id, updates, { new: true })
@@ -82,7 +103,7 @@ const Handler = {
 			if (!deleted) {
 				return Boom.notFound()
 			}
-			return deleted
+			return convert(deleted)
 		} catch(e) {
 			request.logger.error(e)
 			return new Boom(e)

@@ -8,6 +8,11 @@ const Routes = [
 	},
 	{
 		method: 'GET',
+		path: '/recipe',
+		handler: Handler.getRecipe
+	},
+	{
+		method: 'GET',
 		path: '/recipe/{id}',
 		handler: Handler.getRecipe
 	},
